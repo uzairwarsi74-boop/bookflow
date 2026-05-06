@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title id="page-title">BookFlow — Appointment Scheduler</title>
+<link rel="stylesheet" href="css/main.css">
+<!-- Firebase SDKs v8 compat — no build tools needed -->
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+<!-- BookFlow Firebase layer — loads before app.js -->
+<script src="js/firebase.js"></script>
+</head>
+<body>
+
+<!-- ╔══════════════════════════════════════╗ -->
+<!-- ║  FIRST-TIME SETUP (shown once only)  ║ -->
+<!-- ╚══════════════════════════════════════╝ -->
+<div id="screen-setup">
+  <div class="setup-wrap">
+    <div class="setup-logo">
+      <div class="setup-logo-icon">📅</div>
+      <div class="setup-logo-text">BookFlow</div>
+      <div class="setup-logo-sub">Appointment Scheduler — First Time Setup</div>
+    </div>
+    <div class="setup-box" id="setup-box">
+      <!-- Steps rendered by JS -->
+    </div>
+  </div>
+</div>
+
+<!-- ╔══════════════════════════════╗ -->
+<!-- ║  OWNER / STAFF LOGIN SCREEN  ║ -->
+<!-- ╚══════════════════════════════╝ -->
+<!-- ╔══════════════════════════════════════════════════════════╗ -->
+<!-- ║  ADMIN LOGIN — Only accessible via URL/#admin            ║ -->
+<!-- ║  Customers NEVER see this. They land on booking portal.  ║ -->
+<!-- ╚══════════════════════════════════════════════════════════╝ -->
+<div id="screen-login">
+  <div class="login-wrap">
+    <div class="login-card">
+      <div class="login-logo" id="login-logo">📅</div>
+      <div class="login-biz-name" id="login-biz-name">My Business</div>
+      <div class="login-biz-type" id="login-biz-type">Management Dashboard</div>
+
+      <div class="login-tabs">
+        <button class="login-tab active" id="ltab-owner" onclick="switchLoginTab('owner')">🏢 Owner</button>
+        <button class="login-tab" id="ltab-staff" onclick="switchLoginTab('staff')">👤 Staff</button>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">Password</label>
+        <input type="password" class="field-input" id="login-pass" placeholder="Enter your password" onkeydown="if(event.key==='Enter')doLogin()">
+      </div>
+      <div id="login-err" class="login-err" style="display:none">❌ Wrong password. Please try again.</div>
+      <button class="btn btn-primary btn-login" onclick="doLogin()">Sign In →</button>
+
+      <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--border);text-align:center">
+        <a href="#" onclick="gotoBooking();return false;" style="font-size:13px;color:var(--text3);text-decoration:none">
+          ← Back to booking portal
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ╔══════════════════════════╗ -->
+<!-- ║  OWNER / STAFF DASHBOARD  ║ -->
+<!-- ╚══════════════════════════╝ -->
+<div id="screen-app">
+  <div class="app-layout">
+
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-brand">
+        <div class="sidebar-logo-sq" id="sb-logo">📅</div>
+        <div>
+          <div class="sb-biz-name" id="sb-biz-name">My Business</div>
+          <div class="sb-biz-type" id="sb-biz-type">Salon</div>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-group-label">Overview</div>
+        <div class="nav-item active" data-page="dashboard" onclick="navigate('dashboard',this)">
+          <span class="ni">🏠</span> Dashboard
+        </div>
+
+        <div class="nav-group-label">Bookings</div>
+        <div class="nav-item" data-page="appointments" onclick="navigate('appointments',this)">
+          <span class="ni">📋</span> <span class="lbl-bookings">Bookings</span>
+        </div>
+        <div class="nav-item" data-page="calendar" onclick="navigate('calendar',this)">
+          <span class="ni">📅</span> Calendar
+        </div>
+        <div class="nav-item" data-page="new-booking" onclick="navigate('new-booking',this)">
+          <span class="ni">➕</span> New Booking
+        </div>
+
+        <div class="nav-group-label">People</div>
+        <div class="nav-item" data-page="staff" onclick="navigate('staff',this)">
+          <span class="ni">👥</span> <span class="lbl-staff">Staff</span>
+        </div>
+        <div class="nav-item" data-page="customers" onclick="navigate('customers',this)">
+          <span class="ni">👤</span> <span class="lbl-customers">Customers</span>
+        </div>
+
+        <div class="nav-group-label">Business</div>
+        <div class="nav-item" data-page="services" onclick="navigate('services',this)">
+          <span class="ni">🛎️</span> <span class="lbl-services">Services</span>
+        </div>
+        <div class="nav-item owner-only" data-page="branches" onclick="navigate('branches',this)">
+          <span class="ni">📍</span> Branches
+        </div>
+        <div class="nav-item" data-page="analytics" onclick="navigate('analytics',this)">
+          <span class="ni">📊</span> Analytics
+        </div>
+        <div class="nav-item owner-only" data-page="settings" onclick="navigate('settings',this)">
+          <span class="ni">⚙️</span> Settings
+        </div>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="nav-item" onclick="gotoBooking()">
+          <span class="ni">🔗</span> Customer Portal
+        </div>
+        <div class="nav-item" onclick="logout()">
+          <span class="ni">🚪</span> Sign Out
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="app-main">
+      <div class="topbar">
+        <div class="topbar-left">
+          <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
+          <div class="topbar-title" id="topbar-title">Dashboard</div>
+        </div>
+        <div class="topbar-right">
+          <span class="role-pill" id="role-pill">👑 Owner</span>
+<!-- Firebase: no Publish button needed — changes are live instantly -->
+          <button class="btn btn-primary btn-sm" onclick="navigate('new-booking',null)">+ New Booking</button>
+          <div class="topbar-avatar" id="topbar-avatar">O</div>
+        </div>
+      </div>
+
+      <!-- ── DASHBOARD ── -->
+      <div class="page active" id="page-dashboard">
+        <div class="stats-grid" id="stats-grid"></div>
+        <div class="two-col">
+          <div class="card">
+            <div class="card-head">
+              <span class="card-title" id="lbl-today-title">Today's Appointments</span>
+              <span class="badge badge-info" id="today-badge">0</span>
+            </div>
+            <div class="card-body" id="today-list"></div>
+          </div>
+          <div class="card">
+            <div class="card-head"><span class="card-title">Quick Calendar</span></div>
+            <div class="card-body" id="mini-cal"></div>
+          </div>
+        </div>
+        <div class="card mt16">
+          <div class="card-head">
+            <span class="card-title">AI Business Insights</span>
+            <button class="btn btn-ghost btn-sm" onclick="genInsights()">↻ Refresh</button>
+          </div>
+          <div class="card-body" id="ai-insights">
+            <div class="empty-state">🤖<br>Click Refresh for AI insights</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── APPOINTMENTS ── -->
+      <div class="page" id="page-appointments">
+        <div class="page-toolbar">
+          <div class="toolbar-left">
+            <input class="field-input" style="width:200px" placeholder="Search…" oninput="filterAppts(this.value,'search')">
+            <select class="field-input field-select" style="width:130px" onchange="filterAppts(this.value,'status')">
+              <option value="">All Status</option>
+              <option value="confirmed">Confirmed</option>
+              <option value="pending">Pending</option>
+              <option value="cancelled">Cancelled</option>
+              <option value="no-show">No-show</option>
+            </select>
+            <select class="field-input field-select" style="width:150px" id="filter-branch" onchange="filterAppts(this.value,'branch')">
+              <option value="">All Branches</option>
+            </select>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="navigate('new-booking',null)">+ Book Now</button>
+        </div>
+        <div class="card">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th class="lbl-customer-h">Customer</th>
+                  <th>Service</th>
+                  <th class="lbl-staff-h">Staff</th>
+                  <th>Branch</th>
+                  <th>Date & Time</th>
+                  <th>Price</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="appts-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── CALENDAR ── -->
+      <div class="page" id="page-calendar">
+        <div class="card">
+          <div class="card-head">
+            <div class="cal-nav-row">
+              <button class="cal-btn" onclick="calPrev()">‹</button>
+              <span class="cal-month-title" id="cal-title"></span>
+              <button class="cal-btn" onclick="calNext()">›</button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="cal-day-names" id="cal-day-names"></div>
+            <div class="cal-grid" id="cal-grid"></div>
+          </div>
+        </div>
+        <div class="card mt16">
+          <div class="card-head"><span class="card-title" id="cal-day-title">Select a day</span></div>
+          <div class="card-body" id="cal-day-list"><div class="empty-state">Click any day above</div></div>
+        </div>
+      </div>
+
+      <!-- ── NEW BOOKING ── -->
+      <div class="page" id="page-new-booking">
+        <div style="max-width:600px">
+          <div class="card">
+            <div class="card-head"><span class="card-title" id="lbl-new-booking">New Booking</span></div>
+            <div class="card-body">
+              <div class="form-row">
+                <div class="field-group">
+                  <label class="field-label lbl-cust-name">Customer Name</label>
+                  <input class="field-input" id="nb-name" placeholder="Full name">
+                </div>
+                <div class="field-group">
+                  <label class="field-label">WhatsApp / Phone</label>
+                  <input class="field-input" id="nb-phone" placeholder="+92 300 0000000">
+                </div>
+              </div>
+              <div class="field-group">
+                <label class="field-label">Email (optional)</label>
+                <input class="field-input" id="nb-email" type="email" placeholder="email@example.com">
+              </div>
+              <div class="field-group">
+                <label class="field-label">Branch</label>
+                <select class="field-input field-select" id="nb-branch" onchange="nbUpdateStaff()"></select>
+              </div>
+              <div class="form-row">
+                <div class="field-group">
+                  <label class="field-label lbl-service">Service</label>
+                  <select class="field-input field-select" id="nb-service"></select>
+                </div>
+                <div class="field-group">
+                  <label class="field-label lbl-staff-single">Staff Member</label>
+                  <select class="field-input field-select" id="nb-staff"></select>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="field-group">
+                  <label class="field-label">Date</label>
+                  <input class="field-input" id="nb-date" type="date">
+                </div>
+                <div class="field-group">
+                  <label class="field-label">Time Slot</label>
+                  <select class="field-input field-select" id="nb-time"></select>
+                </div>
+              </div>
+              <div class="field-group">
+                <label class="field-label">Notes</label>
+                <textarea class="field-input" id="nb-notes" rows="2" placeholder="Any special requests…"></textarea>
+              </div>
+              <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="saveNewBooking()">✓ Confirm Booking</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── STAFF ── -->
+      <div class="page" id="page-staff">
+        <div class="page-toolbar">
+          <span class="card-title lbl-staff-mgmt">Staff Management</span>
+          <button class="btn btn-primary btn-sm" onclick="openModal('modal-add-staff')">+ Add Member</button>
+        </div>
+        <div class="branch-assign-banner" id="branch-assign-banner">
+          📍 <strong>Branch Assignment:</strong> Use the dropdown on each card below to assign staff to a branch.
+          Customers will only see staff from their selected branch.
+        </div>
+        <div class="staff-cards-grid" id="staff-cards"></div>
+      </div>
+
+      <!-- ── CUSTOMERS ── -->
+      <div class="page" id="page-customers">
+        <div class="page-toolbar">
+          <span class="card-title lbl-cust-mgmt">Customers</span>
+          <input class="field-input" style="width:220px" placeholder="Search…" oninput="searchCustomers(this.value)">
+        </div>
+        <div class="card">
+          <div class="table-wrap">
+            <table>
+              <thead><tr>
+                <th>Name</th><th>Phone</th><th>Email</th>
+                <th>Bookings</th><th>Last Visit</th><th>No-shows</th>
+              </tr></thead>
+              <tbody id="customers-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── SERVICES ── -->
+      <div class="page" id="page-services">
+        <div class="page-toolbar">
+          <span class="card-title lbl-svc-mgmt">Services</span>
+          <button class="btn btn-primary btn-sm" onclick="openModal('modal-add-service')">+ Add Service</button>
+        </div>
+        <div class="card">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Name</th><th>Duration</th><th>Price</th><th>Category</th><th>Active</th><th>Actions</th></tr></thead>
+              <tbody id="services-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── BRANCHES ── -->
+      <div class="page" id="page-branches">
+        <div class="page-toolbar">
+          <span class="card-title">Branch Management</span>
+          <button class="btn btn-primary btn-sm" onclick="openModal('modal-add-branch')">+ Add Branch</button>
+        </div>
+        <div class="branch-cards-grid" id="branch-cards"></div>
+      </div>
+
+      <!-- ── ANALYTICS ── -->
+      <div class="page" id="page-analytics">
+        <div class="stats-grid" id="analytics-stats"></div>
+        <div class="card mt16">
+          <div class="card-head"><span class="card-title">Service Performance</span></div>
+          <div class="card-body" id="svc-perf"></div>
+        </div>
+        <div class="card mt16">
+          <div class="card-head">
+            <span class="card-title">AI Analytics Report</span>
+            <button class="btn btn-ghost btn-sm" onclick="genAnalyticsReport()">Generate</button>
+          </div>
+          <div class="card-body" id="analytics-report">
+            <div class="empty-state">📊<br>Click Generate for an AI report</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── SETTINGS (owner only) ── -->
+      <div class="page" id="page-settings">
+        <div class="settings-layout">
+          <div class="settings-sidebar">
+            <div class="settings-nav-item active" onclick="showStTab('business',this)">🏢 Business</div>
+            <div class="settings-nav-item" onclick="showStTab('branding',this)">🎨 Branding</div>
+            <div class="settings-nav-item" onclick="showStTab('currency',this)">💰 Currency</div>
+            <div class="settings-nav-item" onclick="showStTab('hours',this)">🕐 Hours & Slots</div>
+            <div class="settings-nav-item" onclick="showStTab('rules',this)">📋 Booking Rules</div>
+            <div class="settings-nav-item" onclick="showStTab('labels',this)">🏷️ Custom Labels</div>
+            <div class="settings-nav-item" onclick="showStTab('holidays',this)">📅 Holidays</div>
+            <div class="settings-nav-item" onclick="showStTab('notifications',this)">🔔 Notifications</div>
+            <div class="settings-nav-item" onclick="showStTab('access',this)">🔐 Passwords</div>
+          </div>
+          <div class="settings-content">
+
+            <!-- Business -->
+            <div class="st-section active" id="st-business">
+              <div class="settings-card">
+                <div class="scard-title">Business Information</div>
+                <div class="scard-body">
+                  <div class="form-row">
+                    <div class="field-group"><label class="field-label">Business Name</label><input class="field-input" id="st-name"></div>
+                    <div class="field-group"><label class="field-label">Business Type</label>
+                      <select class="field-input field-select" id="st-type" onchange="onTypeChange()">
+                        <option>Salon</option><option>Clinic</option><option>Dental Clinic</option>
+                        <option>Gym</option><option>Tutor Center</option><option>Law Office</option>
+                        <option>Spa</option><option>Consultant</option><option>Repair Shop</option><option>Custom</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="field-group"><label class="field-label">Address (Main Branch)</label><input class="field-input" id="st-address"></div>
+                  <div class="form-row">
+                    <div class="field-group"><label class="field-label">WhatsApp</label><input class="field-input" id="st-whatsapp"></div>
+                    <div class="field-group"><label class="field-label">Email</label><input class="field-input" id="st-email" type="email"></div>
+                  </div>
+                  <button class="btn btn-primary" onclick="saveBusinessInfo()">Save Changes</button>
+                </div>
+              </div>
+
+              <!-- Firebase: Changes sync automatically — no download needed -->
+            </div>
+
+            <!-- Branding -->
+            <div class="st-section" id="st-branding">
+              <div class="settings-card">
+                <div class="scard-title">Theme & Branding</div>
+                <div class="scard-body">
+
+                  <!-- LOGO UPLOAD -->
+                  <div class="field-group">
+                    <label class="field-label">Business Logo</label>
+                    <div class="logo-upload-area">
+                      <div class="logo-preview-box">
+                        <div id="logo-preview"><span style="font-size:36px">📅</span></div>
+                      </div>
+                      <div class="logo-upload-controls">
+                        <p style="font-size:13px;color:var(--text2);margin-bottom:10px">
+                          Upload your business logo (PNG, JPG, max 500KB).<br>
+                          It will appear on the sidebar, login screen, and booking portal.
+                        </p>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap">
+                          <label class="btn btn-primary btn-sm" style="cursor:pointer">
+                            📁 Upload Logo
+                            <input type="file" accept="image/*" style="display:none" onchange="handleLogoUpload(this)">
+                          </label>
+                          <button class="btn btn-outline btn-sm" onclick="removeLogo()">✕ Remove Logo</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="logo-or-divider">
+                    <span>or use an icon instead of logo</span>
+                  </div>
+
+                  <!-- EMOJI ICON -->
+                  <div class="field-group">
+                    <label class="field-label">Business Icon (used when no logo uploaded)</label>
+                    <div class="emoji-picker" id="emoji-picker"></div>
+                  </div>
+
+                  <!-- BRAND COLOR -->
+                  <div class="field-group">
+                    <label class="field-label">Brand Color</label>
+                    <div class="color-swatches" id="color-swatches"></div>
+                    <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
+                      <input type="color" id="custom-color" style="width:40px;height:32px;border:1px solid var(--border);border-radius:6px;cursor:pointer" onchange="setCustomColor(this.value)">
+                      <span style="font-size:12px;color:var(--text3)">Or pick any custom color</span>
+                    </div>
+                  </div>
+
+                  <button class="btn btn-primary" onclick="saveBranding()">Apply Theme</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Currency -->
+            <div class="st-section" id="st-currency">
+              <div class="settings-card">
+                <div class="scard-title">Currency Settings</div>
+                <div class="scard-body">
+                  <div class="field-group">
+                    <label class="field-label">Quick Select</label>
+                    <div class="currency-presets" id="currency-presets"></div>
+                  </div>
+                  <div class="form-row">
+                    <div class="field-group"><label class="field-label">Symbol</label><input class="field-input" id="cur-symbol" maxlength="5" oninput="updateCurrencyPreview()"></div>
+                    <div class="field-group"><label class="field-label">Position</label>
+                      <select class="field-input field-select" id="cur-pos" onchange="updateCurrencyPreview()">
+                        <option value="before">Before (PKR 500)</option>
+                        <option value="after">After (500 PKR)</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="preview-box">Preview: <strong id="cur-preview">PKR 1,500</strong></div>
+                  <button class="btn btn-primary" onclick="saveCurrency()">Save Currency</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Hours & Slots -->
+            <div class="st-section" id="st-hours">
+              <div class="settings-card">
+                <div class="scard-title">Working Days</div>
+                <div class="scard-body" id="working-days-settings"></div>
+              </div>
+              <div class="settings-card mt16">
+                <div class="scard-title">Slot Configuration</div>
+                <div class="scard-body">
+                  <div class="form-row">
+                    <div class="field-group"><label class="field-label">Slot Duration (mins)</label>
+                      <select class="field-input field-select" id="slot-dur">
+                        <option value="15">15 min</option><option value="30">30 min</option>
+                        <option value="60" selected>60 min</option><option value="90">90 min</option><option value="120">120 min</option>
+                      </select>
+                    </div>
+                    <div class="field-group"><label class="field-label">Buffer Between Bookings</label>
+                      <select class="field-input field-select" id="slot-buf">
+                        <option value="0">None</option><option value="5">5 min</option>
+                        <option value="10" selected>10 min</option><option value="15">15 min</option><option value="30">30 min</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="toggle-row">
+                    <div><div class="trow-label">Friday Closed</div><div class="trow-desc">Block all Friday slots</div></div>
+                    <div class="toggle" id="tog-friday" onclick="this.classList.toggle('on')"></div>
+                  </div>
+                  <div class="toggle-row">
+                    <div><div class="trow-label">Ramadan Mode</div><div class="trow-desc">Reduced hours during Ramadan</div></div>
+                    <div class="toggle" id="tog-ramadan" onclick="this.classList.toggle('on')"></div>
+                  </div>
+                  <button class="btn btn-primary" style="margin-top:14px" onclick="saveSlotSettings()">Save Slot Settings</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Booking Rules -->
+            <div class="st-section" id="st-rules">
+              <div class="settings-card">
+                <div class="scard-title">Booking Rules</div>
+                <div class="scard-body">
+                  <div class="toggle-row"><div><div class="trow-label">Allow Same-day Booking</div></div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+                  <div class="toggle-row"><div><div class="trow-label">Auto-confirm Bookings</div><div class="trow-desc">No manual approval needed</div></div><div class="toggle" onclick="this.classList.toggle('on')"></div></div>
+                  <div class="toggle-row"><div><div class="trow-label">Allow Customer Cancellations</div></div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+                  <div class="toggle-row"><div><div class="trow-label">Track No-shows</div></div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+                  <div class="form-row" style="margin-top:14px">
+                    <div class="field-group"><label class="field-label">Booking window (days ahead)</label><input class="field-input" type="number" value="30"></div>
+                    <div class="field-group"><label class="field-label">Cancel deadline (hours before)</label><input class="field-input" type="number" value="24"></div>
+                  </div>
+                  <button class="btn btn-primary" onclick="showToast('Rules saved!','success')">Save Rules</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Custom Labels -->
+            <div class="st-section" id="st-labels">
+              <div class="settings-card">
+                <div class="scard-title">Custom Labels — Rename Any Term</div>
+                <div class="scard-body" id="labels-body"></div>
+              </div>
+            </div>
+
+            <!-- Holidays -->
+            <div class="st-section" id="st-holidays">
+              <div class="settings-card">
+                <div class="scard-title">Holidays & Blocked Dates</div>
+                <div class="scard-body">
+                  <div class="form-row">
+                    <div class="field-group"><label class="field-label">Date</label><input class="field-input" id="hol-date" type="date"></div>
+                    <div class="field-group"><label class="field-label">Reason</label><input class="field-input" id="hol-reason" placeholder="Eid, Public Holiday…"></div>
+                  </div>
+                  <button class="btn btn-primary btn-sm" onclick="addHoliday()">+ Add Holiday</button>
+                  <div id="holidays-list" style="margin-top:14px;display:flex;flex-direction:column;gap:6px"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Notifications -->
+            <div class="st-section" id="st-notifications">
+              <div class="settings-card">
+                <div class="scard-title">Notification Settings</div>
+                <div class="scard-body">
+                  <div class="toggle-row"><div><div class="trow-label">WhatsApp Confirmation</div></div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+                  <div class="toggle-row"><div><div class="trow-label">Email Confirmation</div></div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+                  <div class="toggle-row"><div><div class="trow-label">24-hour Reminder</div></div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+                  <div class="toggle-row"><div><div class="trow-label">1-hour Reminder</div></div><div class="toggle" onclick="this.classList.toggle('on')"></div></div>
+                  <div class="toggle-row"><div><div class="trow-label">No-show Alert to Owner</div></div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+                  <button class="btn btn-primary" style="margin-top:14px" onclick="showToast('Notifications saved!','success')">Save</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Passwords & Access -->
+            <div class="st-section" id="st-access">
+              <div class="settings-card">
+                <div class="scard-title">Change Passwords</div>
+                <div class="scard-body">
+                  <div class="form-row">
+                    <div class="field-group"><label class="field-label">Owner Password</label><input class="field-input" id="pw-owner" type="password" placeholder="New owner password"></div>
+                    <div class="field-group"><label class="field-label">Staff Password</label><input class="field-input" id="pw-staff" type="password" placeholder="New staff password"></div>
+                  </div>
+                  <button class="btn btn-primary" onclick="savePasswords()">Update Passwords</button>
+                </div>
+              </div>
+              <div class="settings-card mt16">
+                <div class="scard-title">Authorised Staff Accounts</div>
+                <div class="scard-body">
+                  <p style="font-size:13px;color:var(--text2);margin-bottom:14px">Add named staff accounts with branch access. All staff share the staff password set above.</p>
+                  <div class="form-row">
+                    <div class="field-group"><label class="field-label">Name</label><input class="field-input" id="auth-name" placeholder="Full name"></div>
+                    <div class="field-group"><label class="field-label">Role</label><input class="field-input" id="auth-role" placeholder="Manager, Receptionist…"></div>
+                  </div>
+                  <div class="form-row">
+                    <div class="field-group"><label class="field-label">Email</label><input class="field-input" id="auth-email" type="email" placeholder="staff@email.com"></div>
+                    <div class="field-group"><label class="field-label">Branch</label><select class="field-input field-select" id="auth-branch"></select></div>
+                  </div>
+                  <button class="btn btn-primary btn-sm" onclick="addAuthUser()">+ Add Staff Account</button>
+                  <div id="auth-list" style="margin-top:14px;display:flex;flex-direction:column;gap:8px"></div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div><!-- /page-settings -->
+
+    </main>
+  </div>
+
+  <!-- AI Assistant Button (owner/staff only) -->
+  <div class="ai-fab-wrap" id="ai-fab-wrap">
+    <div class="ai-chat-window" id="ai-window">
+      <div class="ai-win-head">
+        <span><span class="ai-dot"></span> AI Assistant</span>
+        <button onclick="toggleAI()" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--text2)">×</button>
+      </div>
+      <div class="ai-msgs" id="ai-msgs">
+        <div class="ai-msg bot" id="ai-welcome">Hi! Ask me anything about your business.</div>
+      </div>
+      <div class="ai-input-row">
+        <input class="ai-input" id="ai-input" placeholder="Ask anything…" onkeydown="if(event.key==='Enter')sendAI()">
+        <button class="ai-send" onclick="sendAI()">➤</button>
+      </div>
+    </div>
+    <button class="ai-fab" onclick="toggleAI()">🤖</button>
+  </div>
+</div><!-- /screen-app -->
+
+<!-- ╔══════════════════════════════════════╗ -->
+<!-- ║  CUSTOMER BOOKING PORTAL             ║ -->
+<!-- ║  No admin links. No dashboard.       ║ -->
+<!-- ║  No login options shown to customer. ║ -->
+<!-- ╚══════════════════════════════════════╝ -->
+<div id="screen-booking">
+  <div class="bk-nav">
+    <div class="bk-nav-brand">
+      <span id="bk-nav-icon">📅</span>
+      <span id="bk-nav-name">My Business</span>
+    </div>
+    <!--
+      OWNER ACCESS: To open the management dashboard,
+      add #admin to your URL: yourdomain.com/#admin
+      This link is intentionally invisible to customers.
+    -->
+    <a href="#admin" class="admin-secret-link" title="Management">⚙</a>
+  </div>
+  <div class="bk-layout">
+    <!-- Left panel — services -->
+    <div class="bk-sidebar" id="bk-sidebar">
+      <div class="bk-biz-name" id="bk-biz-name">Business Name</div>
+      <div class="bk-biz-tag" id="bk-biz-tag">Book your appointment</div>
+      <div class="bk-section-label">Select Service</div>
+      <div id="bk-services"></div>
+      <div class="bk-contact">
+        <div>📍 <span id="bk-addr"></span></div>
+        <div>💬 <span id="bk-wa"></span></div>
+      </div>
+    </div>
+    <!-- Right panel — steps -->
+    <div class="bk-main">
+      <!-- Step 1 -->
+      <div id="bk-s1">
+        <!-- DATE FIRST — so staff availability shows correctly -->
+        <div class="bk-step-title">📅 Select Date</div>
+        <input class="field-input" id="bk-date" type="date" style="margin-bottom:20px" onchange="bkOnDateChange()">
+
+        <div id="bk-branch-wrap" style="display:none">
+          <div class="bk-step-title">📍 Select Location / Branch</div>
+          <div id="bk-branches"></div>
+        </div>
+
+        <div class="bk-step-title lbl-choose-staff">Choose Your Specialist</div>
+        <div class="bk-staff-grid" id="bk-staff"></div>
+
+        <div class="bk-step-title">🕐 Available Times</div>
+        <div class="bk-slots" id="bk-slots"></div>
+        <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:16px" onclick="bkGoStep2()">Continue →</button>
+      </div>
+      <!-- Step 2 -->
+      <div id="bk-s2" style="display:none">
+        <div class="bk-step-title">Your Details</div>
+        <div class="form-row">
+          <div class="field-group"><label class="field-label">Full Name *</label><input class="field-input" id="bk-cname" placeholder="Your name"></div>
+          <div class="field-group"><label class="field-label">WhatsApp *</label><input class="field-input" id="bk-cphone" placeholder="+92…"></div>
+        </div>
+        <div class="field-group"><label class="field-label">Email</label><input class="field-input" id="bk-cemail" type="email" placeholder="email@…"></div>
+        <div class="field-group"><label class="field-label">Notes</label><textarea class="field-input" id="bk-cnotes" rows="2" placeholder="Special requests…"></textarea></div>
+        <div class="confirm-box" id="bk-summary"></div>
+        <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="bkConfirm()">✓ Confirm Appointment</button>
+        <button class="btn btn-ghost" style="width:100%;justify-content:center;margin-top:8px" onclick="bkBack()">← Back</button>
+      </div>
+      <!-- Step 3 — confirmed -->
+      <div id="bk-s3" style="display:none;text-align:center;padding:48px 24px">
+        <div style="font-size:56px;margin-bottom:16px">✅</div>
+        <h2 class="bk-confirmed-title" id="bk-confirmed-h">Appointment Confirmed!</h2>
+        <p style="color:var(--text2);margin-bottom:24px" id="bk-confirmed-msg">We'll send a WhatsApp confirmation shortly.</p>
+        <div class="confirm-box" id="bk-final-summary"></div>
+        <button class="btn btn-primary" style="margin-top:20px" onclick="bkReset()">Book Another</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODALS ═══ -->
+
+<!-- Add Staff -->
+<div class="modal-overlay" id="modal-add-staff">
+  <div class="modal">
+    <div class="modal-title lbl-add-staff">Add Staff Member</div>
+    <div class="field-group"><label class="field-label">Full Name</label><input class="field-input" id="ms-name" placeholder="Name"></div>
+    <div class="field-group"><label class="field-label">Role / Title</label><input class="field-input" id="ms-role" placeholder="Stylist, Doctor, Trainer…"></div>
+    <div class="field-group"><label class="field-label">Phone</label><input class="field-input" id="ms-phone" placeholder="+92…"></div>
+    <div class="field-group"><label class="field-label">Assigned Branch</label><select class="field-input field-select" id="ms-branch"></select></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-add-staff')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveStaff()">Add Member</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Service -->
+<div class="modal-overlay" id="modal-add-service">
+  <div class="modal">
+    <div class="modal-title lbl-add-service">Add Service</div>
+    <div class="field-group"><label class="field-label">Service Name</label><input class="field-input" id="msv-name" placeholder="Service name"></div>
+    <div class="form-row">
+      <div class="field-group"><label class="field-label">Duration (mins)</label><input class="field-input" id="msv-dur" type="number" value="60"></div>
+      <div class="field-group"><label class="field-label">Price</label><input class="field-input" id="msv-price" type="number" value="500"></div>
+    </div>
+    <div class="field-group"><label class="field-label">Category</label><input class="field-input" id="msv-cat" placeholder="Category"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-add-service')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveService()">Add Service</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Branch -->
+<div class="modal-overlay" id="modal-add-branch">
+  <div class="modal">
+    <div class="modal-title">Add Branch</div>
+    <div class="field-group"><label class="field-label">Branch Name</label><input class="field-input" id="mb-name" placeholder="Downtown, Mall, Main…"></div>
+    <div class="field-group"><label class="field-label">Full Address</label><input class="field-input" id="mb-addr" placeholder="Complete address"></div>
+    <div class="form-row">
+      <div class="field-group"><label class="field-label">Phone</label><input class="field-input" id="mb-phone" placeholder="+92…"></div>
+      <div class="field-group"><label class="field-label">WhatsApp</label><input class="field-input" id="mb-wa" placeholder="+92…"></div>
+    </div>
+    <div class="field-group"><label class="field-label">Branch Manager Name</label><input class="field-input" id="mb-mgr" placeholder="Manager name"></div>
+    <div class="field-group"><label class="field-label">Manager Phone</label><input class="field-input" id="mb-mgr-ph" placeholder="+92…"></div>
+    <div class="form-row">
+      <div class="field-group"><label class="field-label">Open Time</label><input class="field-input" id="mb-open" type="time" value="09:00"></div>
+      <div class="field-group"><label class="field-label">Close Time</label><input class="field-input" id="mb-close" type="time" value="20:00"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-add-branch')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveBranch()">Add Branch</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script src="js/app.js"></script>
+</body>
+</html>
